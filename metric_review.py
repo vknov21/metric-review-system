@@ -2,6 +2,10 @@
 import streamlit as st
 from streamlit.runtime.scriptrunner import get_script_run_ctx
 from streamlit import runtime
+from config.config import DB_NAME, METRIC, METRIC_DESCRIPTIVE, REVIEWERS_SHORTHAND as choices
+from db_operations import get_initialized_user_requests, delete_all_db_data, get_db_path, \
+    check_if_db_exists, insert_all_data, initialize_tables_for_db, DB_PATH, get_user_to_id_map
+from exceptions import DatabaseDoesNotExist
 import sys
 import re
 import pathlib
@@ -82,43 +86,42 @@ def page_has_refreshed():
         return True
 
 
+st.browser_access_info = {}
+if 'initialize_from_db' not in st.session_state or st.session_state.initialize_from_db is False:
+    st.browser_access_info = get_initialized_user_requests()
+
 # Initializes for global access, and also to verify if the Browser is in Incognito/Private Window,
 # which fails to get the 'ajs_anonymous_id' and requires a one time refresh
 browser_id, refresh_id = get_refresh_browser_ids()
 
-
-# Reviewer name choices (human-readable name -> shortname to display as column name). Modified it as per your need
-choices = {
-    "Biltu Dey": "biltu",
-    "Hardik Singh": "hardik",
-    "Laxman Gaikwad": "laxman",
-    "Prateek Kumar": "prateek",
-    "Rohan Chinchkar": "rohan",
-    # "Tanish Goyal": "tanish",
-    "Vivek Tripathi": "vivek",
-}
-
 # Initializes browser access info, if not already present
-if not hasattr(st, "browser_access_info"):
-    st.browser_access_info = {c: {} for c in choices}
+for c in choices:
+    if c not in st.browser_access_info:
+        st.browser_access_info[c] = {}
 
-# List of evaluation metrics. Change it as per need
-# NOTE: You need to make sure that the initials of each word joined is always unique
-# ....: as the intials get used to identify the fields uniquely
-# For eg., Code Quality Metrics: cqm | Collaboration & Communication: cac | Work-Life Balance: wlb
-# '&' becomes 'a' in shorthand. Also, '/' and '-' get replaced ' ' for word separation
-METRIC = [
-    "• Code Quality Metrics",
-    "• Development Efficiency",
-    "• Collaboration & Communication",
-    "• Learning and Growth",
-    "• Task and Time Management",
-    "• Customer/End-User Focus",
-    "• Innovation and Initiative",
-    "• Consistency and Reliability",
-    "• Team Support & Mentorship",
-    "• Work-Life Balance",
-]
+try:
+    check_if_db_exists()
+except DatabaseDoesNotExist:
+    pass
+else:
+    accept = input(f"The database named {DB_NAME} already exists. Either add a new DB entry in config.py file or press 'y' if you wish to delete all the entries and start over: ")
+    if accept not in ['y', 'Y']:
+        print("Exiting, as the user hasn't selected 'y' and wishes to keep the data stored in the current DB")
+        exit(1)
+    delete_all_db_data()
+
+
+if 'initialization_choices' not in st.session_state:
+    st.session_state.initialization_choices = {}
+    # Inserts metric data with name and description onto the DB
+    insert_all_data(metric_data=METRIC_DESCRIPTIVE.items())
+    # Inserts users name and username (shorthand) declared as the Const onto the DB
+    choices_rev = {v: k for k, v in choices}
+    insert_all_data(user_data=choices.items())
+    # Assigns user to id mapping, which will be a dictionary in form {username: id, username2: id2, ...}
+    st.session_state.initialization_choices["user_id_mapping"] = get_user_to_id_map()
+
+user_to_id_map: dict = st.session_state.initialization_choices["user_id_mapping"]
 
 
 def initialize_const_vars(key, value):
@@ -140,18 +143,19 @@ def store_selection(*args, **kwargs):
         st.error(f"User as {args[0]} is already registered with the system. Use other as the Reviewer Name", icon=":material/error:")
     elif args[0]:
         st.const_vars["browser_reviewer"][browser_id] = args[0]
+        insert_all_data(auth_data=(user_id, browser_id))
 
 
 @st.dialog("Confirm")
 def confirmation_dialog(msg, name, metrics):
     """Confirmation dialog for submitting the review."""
+    global browser_id
     st.markdown(msg)
     button1, button2 = st.columns(2)
     if button1.button("Confirm", type="primary", use_container_width=True):
         st.session_state.confirm_dialog = True
-        for metric in metrics:
-            # print(name + '_' + metric, st.session_state.get(name + '_' + metric))
-            pass
+        reviewer = st.const_vars["browser_reviewer"][browser_id]
+        st.const_vars["input_save"][reviewer]["finalised"].append(name)
         st.rerun()  # Closes the dialog box
     elif button2.button("Cancel", type="secondary", use_container_width=True):
         st.session_state.confirm_dialog = False
@@ -160,7 +164,12 @@ def confirmation_dialog(msg, name, metrics):
 
 def confirm_rating(*args, **kwargs):
     """Validates and triggers the confirmation dialog."""
+    global browser_id
+    reviewer = st.const_vars["browser_reviewer"][browser_id]
     user_name, error_users_field, metrics = args
+    if user_name in st.const_vars["input_save"][reviewer]["finalised"]:
+        st.error(f"You have already submitted your rating for User: '{user_name.capitalize()}'")
+        return
     if user_name in error_users_field:
         st.error("Resolve errors first, before proceeding", icon=":material/error:")
         return
@@ -172,16 +181,13 @@ def confirm_rating(*args, **kwargs):
 
 def validate_input(*args, **kwargs):
     """Ensures that the input is a float and is between 1 and 10."""
-    val = st.session_state.get(args[0])
-    # user, key = args[0].split('_')
-    reviewer = args[1]
-    msg = None
     global reversed_metrics_initials
+    val: float = st.session_state.get(args[0])
+    msg = None
     try:
         val = float(val)
     except ValueError:
         msg = "Input should be a floating point"
-        val = st.const_vars["input_save"][reviewer][args[0]]
     else:
         if val < 1 or val > 10:
             msg = "Range should be 1 to 10"
@@ -202,19 +208,13 @@ def fetch_initials(text):
     return sel
 
 
-# Map full metric to short names and the reverse of it
-all_metrics_initials = {li: fetch_initials(li) for li in METRIC}
-reversed_metrics_initials = {v: k for k, v in all_metrics_initials.items()}
-
-
 def create_metric_mapping(reviewer):
     """Render metric entry table with validations and UI layout."""
     error_users_field = set()
     page_refreshed = page_has_refreshed()
     all_users_name = choices.copy()
-
     if reviewer not in st.const_vars["input_save"]:
-        st.const_vars["input_save"][reviewer] = {}
+        st.const_vars["input_save"][reviewer] = {"finalised": get_reviewers_finalised_cols()}
     reviewer_save_vars = st.const_vars["input_save"][reviewer]
 
     # Separate the reviewer from others that needs to be reviewed
@@ -248,11 +248,16 @@ def create_metric_mapping(reviewer):
                 st.markdown(f"**{metric}**")
             for idx in range(len(names_col)):
                 user_name = all_users_name[idx][1] if idx < total_cnt_removing_self else pop_self
+                value, disabled = "", False
+                # If reviewer has already reviewed a user_name, replace the values with '*'
+                if user_name in reviewer_save_vars["finalised"]:
+                    value, disabled = "*", True
                 with names_col[idx]:
                     key = f"{user_name}_{metric_shorthand}"
-                    value = reviewer_save_vars[key] if page_refreshed is True and reviewer_save_vars.get(key) != "" else st.session_state.get(key, "")
-                    value = st.text_input("rating", placeholder=user_name.capitalize(), max_chars=3, label_visibility="collapsed", key=key, value=value)
-                    if value:
+                    if value != "*":
+                        value = reviewer_save_vars[key] if page_refreshed is True and reviewer_save_vars.get(key) != "" else st.session_state.get(key, "")
+                    value = st.text_input("rating", placeholder=user_name.capitalize(), max_chars=3, label_visibility="collapsed", key=key, value=value, disabled=disabled)
+                    if value and value != '*':
                         msg = validate_input(key, reviewer)
                         if msg:
                             error_users_field.add(user_name)
@@ -303,11 +308,20 @@ def create_metric_mapping(reviewer):
         st.markdown("<font style='color:green;'><b>[ Confirmation ]</b></font>", unsafe_allow_html=True)
     for idx in range(len(names_col)):
         user_name = all_users_name[idx][1] if idx < total_cnt_removing_self else pop_self
+        disabled = False
+        if user_name in reviewer_save_vars["finalised"]:
+            disabled = True
         with names_col[idx]:
-            st.button("✅ Done...", key=user_name, on_click=confirm_rating, args=(user_name, error_users_field, reversed_metrics_initials.keys()), use_container_width=True, type="secondary")
+            st.button("✅ Done...", key=user_name, on_click=confirm_rating, args=(user_name, error_users_field, reversed_metrics_initials.keys()),
+                      use_container_width=True, type="secondary", disabled=disabled)
 
     # Persist review inputs
     reviewer_save_vars.update(st.session_state.to_dict())
+
+
+# Map full metric to short names and the reverse of it
+all_metrics_initials = {li: fetch_initials(li) for li in METRIC}
+reversed_metrics_initials = {v: k for k, v in all_metrics_initials.items()}
 
 
 if __name__ == "__main__":
