@@ -2,7 +2,7 @@ import os
 from itertools import chain
 from db_storage.sqlite3_db_helper import SQLiteSession as SQLite3
 from exceptions import DatabaseDoesNotExist, TableExists
-from config.config import DB_NAME
+from config.config import DB_NAME, REVIEWERS_SHORTHAND
 
 
 intial_table_queries = """
@@ -74,7 +74,7 @@ def check_if_db_exists():
 
 def get_initialized_user_requests() -> dict[str, str]:
     query = """
-        SELECT users.name, user_auth.browser_uuid, user_auth.refresh_id
+        SELECT users.name, user_auth.browser_uuid
         FROM user_auth
         JOIN users ON user_auth.user_id = users.id;
     """
@@ -83,10 +83,10 @@ def get_initialized_user_requests() -> dict[str, str]:
         rows = cursor.fetchall()
 
     result = {}
-    for name, browser_uuid, refresh_id in rows:
+    for name, browser_uuid in rows:
         if name not in result:
-            result[name] = {}
-        result[name][browser_uuid] = refresh_id
+            result[name] = browser_uuid
+    print(rows, result)
     return result
 
 
@@ -124,27 +124,28 @@ def insert_all_data(user_data=(), metric_data=(), rating_data=(), auth_data=()) 
     """
     with SQLite3(DB_PATH) as (_, cursor):
         if user_data:
-            # Insert into users table
-            cursor.execute("""
-                INSERT INTO users (
-                    name, username
-                ) VALUES (?, ?);""", user_data)
-            user_id = cursor.lastrowid
+            for name, username in user_data:
+                # Insert into users table
+                cursor.execute("""
+                    INSERT INTO users (
+                        name, username
+                    ) VALUES (?, ?);""", (name, username))
 
         if metric_data:
-            # Insert into metrics table
-            cursor.execute("""
-                INSERT INTO metrics (
-                    name, description
-                ) VALUES (?, ?);""", metric_data)
-            metric_id = cursor.lastrowid
+            for metric, desc in metric_data:
+                # Insert into metrics table
+                cursor.execute("""
+                    INSERT INTO metrics (
+                        name, description
+                    ) VALUES (?, ?);""", (metric, desc))
 
         if rating_data:
-            # Insert into ratings
-            cursor.execute("""
-                INSERT INTO ratings (
-                    user_id, ratee_id, metric_id, score
-                ) VALUES (?, ?, ?, ?);""", rating_data)
+            for user_id, ratee_id, metric_id, score in rating_data:
+                # Insert into ratings
+                cursor.execute("""
+                    INSERT INTO ratings (
+                        user_id, ratee_id, metric_id, score
+                    ) VALUES (?, ?, ?, ?);""", (user_id, ratee_id, metric_id, score))
 
         if auth_data:
             # Insert into user_auth
@@ -163,16 +164,26 @@ def get_user_to_id_map() -> dict:
         return dict(rows)
 
 
+def get_metric_to_id_map() -> dict:
+    with SQLite3(DB_PATH) as (_, cursor):
+        cursor.execute("""
+            SELECT name, id from metrics;
+        """)
+        rows = cursor.fetchall()
+        return dict(rows)
+
+
 def get_reviewers_finalised_cols(reviewer_id):
     with SQLite3(DB_PATH) as (_, cursor):
         cursor.execute("""
-            SELECT u.name
+            SELECT DISTINCT u.name
             FROM ratings r, users u
-            ON r.user_id = u.id
+            ON r.ratee_id = u.id
             WHERE r.user_id=?;
         """, (reviewer_id,))
         rows = cursor.fetchall()
-        return [it[0] for it in rows]
+        print(rows)
+        return [REVIEWERS_SHORTHAND[it[0]] for it in rows]
 
 
 # initialize_tables_for_db()
