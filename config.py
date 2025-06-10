@@ -30,3 +30,5 @@ REVIEWERS_SHORTHAND = {
     # "Tanish Goyal": "tanish",
     "Vivek Tripathi": "vivek",
 }
+
+REVIEWERS_SHORTHAND_REV = {v: k for k, v in REVIEWERS_SHORTHAND.items()}

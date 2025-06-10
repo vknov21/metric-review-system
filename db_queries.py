@@ -1,8 +1,7 @@
 import os
-from itertools import chain
 from db_storage.sqlite3_db_helper import SQLiteSession as SQLite3
-from exceptions import DatabaseDoesNotExist, TableExists
-from config.config import DB_NAME, REVIEWERS_SHORTHAND
+from exceptions import DatabaseDoesNotExist
+from config import DB_NAME, REVIEWERS_SHORTHAND
 
 
 intial_table_queries = """
@@ -86,7 +85,6 @@ def get_initialized_user_requests() -> dict[str, str]:
     for name, browser_uuid in rows:
         if name not in result:
             result[name] = browser_uuid
-    print(rows, result)
     return result
 
 
@@ -182,7 +180,6 @@ def get_reviewers_finalised_cols(reviewer_id):
             WHERE r.user_id=?;
         """, (reviewer_id,))
         rows = cursor.fetchall()
-        print(rows)
         return [REVIEWERS_SHORTHAND[it[0]] for it in rows]
 
 
