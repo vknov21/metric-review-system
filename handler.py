@@ -1,8 +1,7 @@
-# Import necessary libraries
 import streamlit as st
 from config import REVIEWERS_SHORTHAND
 from metric_utils import get_refresh_browser_ids
-from db_queries import insert_all_data
+from db_storage.db_queries import insert_all_data
 from init import get_initialization_choices
 
 

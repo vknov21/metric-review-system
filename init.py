@@ -1,7 +1,6 @@
-# Import necessary libraries
 import streamlit as st
 from config import DB_NAME, METRIC_DESCRIPTIVE, REVIEWERS_SHORTHAND
-from db_queries import get_initialized_user_requests, delete_all_db_data, check_if_db_exists, \
+from db_storage.db_queries import get_initialized_user_requests, delete_all_db_data, check_if_db_exists, \
     initialize_tables_for_db, get_user_to_id_map, get_metric_to_id_map, insert_all_data
 from metric_utils import fetch_initials
 from exceptions import DatabaseDoesNotExist
@@ -47,7 +46,7 @@ def initiated_request_verif():
             initialize_tables_for_db()
             insert_into_db()
         else:
-            accept = input(f"The database named {DB_NAME} already exists. Either add a new DB entry in config.py file or press 'y' if you wish to delete all the entries and start over: ")
+            accept = input(f"The database named {DB_NAME} already exists. To overwrite that DB press 'y' or 'n' to continue with the current DB in the state that it is in: ")
             st.const_vars['initialized_from_db'] = 'False'
             st.const_vars["browser_reviewer"] = {}
             st.const_vars["initialization_choices"] = "{}"
@@ -55,7 +54,7 @@ def initiated_request_verif():
             if accept in ['y', 'Y']:
                 delete_all_db_data()
                 insert_into_db()
-            else:
+            elif accept in ['n', 'N']:
                 print("Continuing on existing DB entries")
                 initialization_choices = {}
                 initialization_choices["user_id_mapping"] = get_user_to_id_map()
@@ -66,5 +65,8 @@ def initiated_request_verif():
                 st.browser_access_info = {k: {v: set()} for k, v in browser_access_info.items()}
                 st.const_vars["browser_reviewer"] = {v: k for k, v in browser_access_info.items()}
                 st.const_vars['initialized_from_db'] = 'True'
+            else:
+                print("\nNot a valid response. Exiting...")
+                st.stop()
         finally:
             st.const_vars['db_verified'] = 'True'

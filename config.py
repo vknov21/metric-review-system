@@ -20,7 +20,7 @@ METRIC_DESCRIPTIVE = {
 
 METRIC = list(METRIC_DESCRIPTIVE.keys())
 
-# Reviewer name choices (human-readable name -> shortname (should be unique) to display as column name). Modified it as per your need
+# Reviewer name choices (human-readable name -> shortname (keys and values should be unique among themselves)). Modify it as per your need
 REVIEWERS_SHORTHAND = {
     "Biltu Dey": "biltu",
     "Hardik Singh": "hardik",

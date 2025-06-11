@@ -1,6 +1,6 @@
 import streamlit as st
 from config import METRIC, REVIEWERS_SHORTHAND
-from db_queries import get_reviewers_finalised_cols
+from db_storage.db_queries import get_reviewers_finalised_cols
 from metric_utils import page_has_refreshed, fetch_initials, get_refresh_browser_ids
 from template import get_tooltip_css
 from init import get_initialization_choices

@@ -1,13 +1,11 @@
-# Import necessary libraries
 import streamlit as st
-from config import METRIC, METRIC_DESCRIPTIVE, REVIEWERS_SHORTHAND
-from db_queries import insert_all_data, get_user_to_id_map, get_metric_to_id_map
+from config import REVIEWERS_SHORTHAND
+from db_storage.db_queries import insert_all_data
 import sys
 import re
 import pathlib
 from init import initialize_const_vars, initiated_request_verif, get_initialization_choices
-from metric_utils import get_refresh_browser_ids, fetch_initials
-from handler import confirmation_dialog
+from metric_utils import get_refresh_browser_ids
 from template import get_self_review_css
 from ui import create_metric_mapping
 

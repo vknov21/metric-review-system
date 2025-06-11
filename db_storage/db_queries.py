@@ -43,7 +43,7 @@ def get_db_path(DB_NAME) -> str:
     return db_store_file
 
 
-DB_PATH = get_db_path(os.path.join("db_storage", DB_NAME))
+DB_PATH = get_db_path(DB_NAME)
 
 
 def initialize_tables_for_db():
@@ -181,17 +181,3 @@ def get_reviewers_finalised_cols(reviewer_id):
         """, (reviewer_id,))
         rows = cursor.fetchall()
         return [REVIEWERS_SHORTHAND[it[0]] for it in rows]
-
-
-# initialize_tables_for_db()
-
-# insert_all_data(
-#     user_data=("jdoe", "John Doe"),
-#     metric_data=("helpfulness", "Colleague is helpful to you and others"),
-#     rating_data=(1, 2, 1, 8.5),
-#     auth_data=(1, "550e8400-e29b-41d4-a716-446655440000")
-# )
-
-# delete_all_db_data()
-
-# print(get_reviewers_finalised_cols(1))

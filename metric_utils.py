@@ -1,10 +1,10 @@
-# Import necessary libraries
 import streamlit as st
 from streamlit.runtime.scriptrunner import get_script_run_ctx
 from streamlit import runtime
+from tornado.httputil import HTTPServerRequest
 
 
-def get_request_obj():
+def get_request_obj() -> HTTPServerRequest:
     """Fetch the HTTP request object to extract client-specific info."""
     try:
         ctx = get_script_run_ctx()
