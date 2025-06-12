@@ -24,7 +24,7 @@ def confirmation_dialog(msg, name, metrics):
             metric_id = metrics[metric_shrt]
             key = f"{name}_{metric_shrt}"
             val = st.session_state.get(key, "")
-            metric_to_score[metric_id] = int(val) if val != "" else None
+            metric_to_score[metric_id] = float(val) if val != "" else None
         for metric_id in metric_to_score:
             db_entry_list.append([user_id, ratee_id, metric_id, metric_to_score[metric_id]])
         insert_all_data(rating_data=db_entry_list)
