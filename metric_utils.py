@@ -2,6 +2,7 @@ import streamlit as st
 from streamlit.runtime.scriptrunner import get_script_run_ctx
 from streamlit import runtime
 from tornado.httputil import HTTPServerRequest
+from config import SELECTIVE_REVIEWERS, REVIEWERS_SHORTHAND, REVIEWERS_SHORTHAND_REV
 
 
 def get_request_obj() -> HTTPServerRequest:
@@ -88,3 +89,14 @@ def fetch_initials(text):
         if ascii_code > 96 and ascii_code < 124:
             sel += chr(ascii_code)
     return sel
+
+
+@st.cache_data
+def get_reviewers_shorthand(reviewer):
+    # Removes the SELECTIVE REVIEWER from being Reviewed, while the SELECTIVE REVIEWER can vote only to the selected people
+    if REVIEWERS_SHORTHAND[reviewer] not in SELECTIVE_REVIEWERS:
+        REVIEWERS_SHORTHAND_COPY = REVIEWERS_SHORTHAND.copy()
+        [REVIEWERS_SHORTHAND_COPY.pop(REVIEWERS_SHORTHAND_REV[item]) for item in SELECTIVE_REVIEWERS]
+        return REVIEWERS_SHORTHAND_COPY.copy()
+    all_to_review = SELECTIVE_REVIEWERS[REVIEWERS_SHORTHAND[reviewer]]
+    return {REVIEWERS_SHORTHAND_REV[review]: review for review in all_to_review}

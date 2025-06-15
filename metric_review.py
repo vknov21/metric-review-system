@@ -5,7 +5,7 @@ import sys
 import re
 import pathlib
 from init import initialize_const_vars, initiated_request_verif, get_initialization_choices
-from metric_utils import get_refresh_browser_ids
+from metric_utils import get_refresh_browser_ids, get_reviewers_shorthand
 from template import get_self_review_css
 from ui import create_metric_mapping
 
@@ -69,4 +69,4 @@ if not st.const_vars.get("browser_reviewer") or not st.const_vars["browser_revie
 if st.const_vars.get("browser_reviewer") and st.const_vars["browser_reviewer"].get(browser_id):
     reviewer = st.const_vars["browser_reviewer"][browser_id]
     st.markdown(get_self_review_css(reviewer), unsafe_allow_html=True)
-    create_metric_mapping(reviewer)
+    create_metric_mapping(reviewer, get_reviewers_shorthand(reviewer))

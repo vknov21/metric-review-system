@@ -45,40 +45,27 @@ def validate_input(*args, **kwargs):
     return msg
 
 
-def create_metric_mapping(reviewer):
-    """Render metric entry table with validations and UI layout."""
-    all_metrics_initials = get_all_metric_initials()
-    user_to_id_map, metric_shorthand_to_id_map = get_initialization_choices()
-    error_users_field = set()
-    page_refreshed = page_has_refreshed()
-    all_users_name = REVIEWERS_SHORTHAND.copy()
-    if reviewer not in st.const_vars["input_save"]:
-        st.const_vars["input_save"][reviewer] = {"finalised": get_reviewers_finalised_cols(user_to_id_map[REVIEWERS_SHORTHAND[reviewer]])}
-    reviewer_save_vars = st.const_vars["input_save"][reviewer]
-
-    # Separate the reviewer from others that needs to be reviewed
-    pop_self = all_users_name.pop(reviewer)
-    all_users_name = list(all_users_name.items())
-    total_cnt_removing_self = len(REVIEWERS_SHORTHAND) - 1
-
-    # Table header layout
-    container_parent = st.container(border=True)
-    metric_col, names_col, self_col = container_parent.columns([1.8, total_cnt_removing_self, 1], border=False, vertical_alignment="center")
+def create_header(container_parent, cnt, user_names, self):
+    if self:
+        metric_col, names_col, self_col = container_parent.columns([1.8, cnt, 1], border=False, vertical_alignment="center")
+    else:
+        cnt = 1
+        metric_col, names_col = container_parent.columns([1.8, 1], border=False, vertical_alignment="center")
     with metric_col:
         with st.columns(1, border=True)[0]:
             st.markdown("**METRIC**")
     with names_col:
-        all_names_col = st.columns(total_cnt_removing_self, border=True)
+        all_names_col = st.columns(cnt, border=True)
         for idx in range(len(all_names_col)):
             with all_names_col[idx]:
-                st.markdown(f"**{all_users_name[idx][1].capitalize()}**")
-    with self_col:
-        with st.columns(1, border=True)[0]:
-            st.markdown(f"<font style='color:magenta;'><b>{pop_self.capitalize()}<b></font>", unsafe_allow_html=True)
+                st.markdown(f"**{user_names[idx][1].capitalize()}**")
+    if self:
+        with self_col:  # pyright:ignore
+            with st.columns(1, border=True)[0]:
+                st.markdown(f"<font style='color:magenta;'><b>{self.capitalize()}<b></font>", unsafe_allow_html=True)
 
-    # Metric input table rows
-    columns_cnt_list = [1.8] + [1] * total_cnt_removing_self + [1]
-    container = container_parent.container()
+
+def create_txt_entries(columns_cnt_list, container, all_metrics_initials, cnt, user_names, reviewer_save_vars, reviewer, self, page_refreshed, error_users_field):
     for metric in METRIC:
         metric_shorthand = all_metrics_initials[metric]
         with container:
@@ -86,7 +73,10 @@ def create_metric_mapping(reviewer):
             with metric_col:
                 st.markdown(f"**{metric}**")
             for idx in range(len(names_col)):
-                user_name = all_users_name[idx][1] if idx < total_cnt_removing_self else pop_self
+                if self:
+                    user_name = user_names[idx][1] if idx < cnt else self
+                else:
+                    user_name = user_names[idx][1]
                 value, disabled = "", False
                 # If reviewer has already reviewed a user_name, replace the values with '*'
                 if user_name in reviewer_save_vars["finalised"]:
@@ -105,12 +95,44 @@ def create_metric_mapping(reviewer):
                             error_users_field.add(user_name)
                             st.markdown(get_tooltip_css(msg), unsafe_allow_html=True)
 
+
+def create_metric_mapping(reviewer, reviewer_mapping=REVIEWERS_SHORTHAND):
+    """Render metric entry table with validations and UI layout."""
+    all_metrics_initials = get_all_metric_initials()
+    user_to_id_map, metric_shorthand_to_id_map = get_initialization_choices()
+    error_users_field = set()
+    page_refreshed = page_has_refreshed()
+    all_users_name: dict = reviewer_mapping.copy()
+    if reviewer not in st.const_vars["input_save"]:
+        if reviewer in all_users_name:
+            st.const_vars["input_save"][reviewer] = {"finalised": get_reviewers_finalised_cols(user_to_id_map[reviewer_mapping[reviewer]])}
+        else:
+            st.const_vars["input_save"][reviewer] = {"finalised": []}
+    reviewer_save_vars = st.const_vars["input_save"][reviewer]
+
+    # Separate the reviewer from others that needs to be reviewed
+    pop_self = all_users_name.pop(reviewer, None)
+    all_users_name = list(all_users_name.items())
+    total_cnt_removing_self = len(reviewer_mapping) - 1
+
+    # Table header layout
+    container_parent = st.container(border=True)
+    create_header(container_parent, total_cnt_removing_self, all_users_name, pop_self)
+
+    # Metric input table rows
+    container = container_parent.container()
+    columns_cnt_list = [1.8] + [1] * total_cnt_removing_self + [1]
+    create_txt_entries(columns_cnt_list, container, all_metrics_initials, total_cnt_removing_self, all_users_name, reviewer_save_vars, reviewer, pop_self, page_refreshed, error_users_field)
+
     # Confirmation row corresponding to each user's name
     metric_col, *names_col = container_parent.columns(columns_cnt_list, vertical_alignment="center")
     with metric_col:
         st.markdown("<font style='color:green;'><b>[ Confirmation ]</b></font>", unsafe_allow_html=True)
     for idx in range(len(names_col)):
-        user_name = all_users_name[idx][1] if idx < total_cnt_removing_self else pop_self
+        if pop_self:
+            user_name = all_users_name[idx][1] if idx < total_cnt_removing_self else pop_self
+        else:
+            user_name = all_users_name[idx][1]
         disabled = False
         if user_name in reviewer_save_vars["finalised"]:
             disabled = True

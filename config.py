@@ -27,8 +27,23 @@ REVIEWERS_SHORTHAND = {
     "Laxman Gaikwad": "laxman",
     "Prateek Kumar": "prateek",
     "Rohan Chinchkar": "rohan",
-    # "Tanish Goyal": "tanish",
+    "Tanish Goyal": "tanish",
+    "Nischey Badyal": "nischey",
     "Vivek Tripathi": "vivek",
 }
 
 REVIEWERS_SHORTHAND_REV = {v: k for k, v in REVIEWERS_SHORTHAND.items()}
+
+# If a reviewer need to be assigned only some person to review and not all. Also, those who won't be rated either
+SELECTIVE_REVIEWERS = {
+    "nischey": ["rohan"]
+}
+
+for rev in SELECTIVE_REVIEWERS:
+    if rev not in REVIEWERS_SHORTHAND_REV:
+        raise Exception(f"SELECTIVE_REVIEWER with shorthand {rev} doesn't match the expected REVIEWER_SHORTHAND names")
+    else:
+        for assigned in SELECTIVE_REVIEWERS[rev]:
+            if assigned not in REVIEWERS_SHORTHAND_REV:
+                raise Exception(f"SELECTIVE_REVIEWER with shorthand '{rev}' has unmatched assigned name '{assigned}' which is "
+                                "not as per the expected REVIEWER_SHORTHAND names")
