@@ -1,13 +1,14 @@
+import time
 import streamlit as st
 from config import REVIEWERS_SHORTHAND
-from db_storage.db_queries import insert_all_data
+from db_storage.db_queries import insert_all_data, get_reviewers_finalised_cols, get_counts_of_reviewed, get_average_scores
 import sys
 import re
 import pathlib
 from init import initialize_const_vars, initiated_request_verif, get_initialization_choices
 from metric_utils import get_refresh_browser_ids, get_reviewers_shorthand
 from template import get_self_review_css
-from ui import create_metric_mapping
+from ui import create_metric_mapping, create_remaining_review_watch
 
 
 if __name__ == "__main__":
@@ -69,4 +70,16 @@ if not st.const_vars.get("browser_reviewer") or not st.const_vars["browser_revie
 if st.const_vars.get("browser_reviewer") and st.const_vars["browser_reviewer"].get(browser_id):
     reviewer = st.const_vars["browser_reviewer"][browser_id]
     st.markdown(get_self_review_css(reviewer), unsafe_allow_html=True)
-    create_metric_mapping(reviewer, get_reviewers_shorthand(reviewer))
+    all_to_review = get_reviewers_shorthand(reviewer)
+    user_to_id_map, metric_shorthand_to_id_map = get_initialization_choices()
+    reviewers_id = user_to_id_map[REVIEWERS_SHORTHAND[reviewer]]
+    st.const_vars["input_save"][reviewer] = {"finalised": get_reviewers_finalised_cols(reviewers_id)}
+    if reviewer in st.const_vars["input_save"] and sorted(all_to_review.values()) == sorted(st.const_vars["input_save"][reviewer]["finalised"]):
+        not_started, pending_reviewers, completed_users = get_counts_of_reviewed()
+        if not not_started and not pending_reviewers:
+            get_average_scores([])
+            st.stop()
+        else:
+            create_remaining_review_watch(pending_reviewers, not_started)
+    else:
+        create_metric_mapping(reviewer, all_to_review)

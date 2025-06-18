@@ -25,7 +25,8 @@ def get_refresh_browser_ids():
     try:
         browser_id = request._cookies['ajs_anonymous_id']._value  # unique browser identifier for a given browser session. Changes for Incognito/Private window
     except KeyError:
-        raise Exception("Currently Private or Incognito Tab requires a refresh of the page to start working")
+        st.error("Currently Private or Incognito Tab requires a refresh of the page to start working", icon=":material/error:")
+        st.stop()
     refresh_id = request.headers._dict['Sec-Websocket-Key']   # changes on page refresh
     return browser_id, refresh_id
 

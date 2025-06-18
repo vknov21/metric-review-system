@@ -46,8 +46,7 @@ def initiated_request_verif():
             initialize_tables_for_db()
             insert_into_db()
         else:
-            accept = 'y'
-            # accept = input(f"The database named {DB_NAME} already exists. To overwrite that DB press 'y' or 'n' to continue with the current DB in the state that it is in: ")
+            accept = input(f"The database named {DB_NAME} already exists. To overwrite that DB press 'y' or 'n' to continue with the current DB in the state that it is in: ")
             st.const_vars['initialized_from_db'] = 'False'
             st.const_vars["browser_reviewer"] = {}
             st.const_vars["initialization_choices"] = "{}"
